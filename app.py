@@ -126,10 +126,21 @@ if uploaded_files:
             st.session_state.messages.append({'role': 'assistant', 'content': assistant_reply})
             st.write(assistant_reply)
 
-            # Add a download button for the assistant's reply
-            st.download_button(
-                label="Download Assistant's Reply",
-                data=assistant_reply,
-                file_name="assistant_reply.txt",
-                mime="text/plain"
-            )
+# Sidebar Button to Download All Assistant Replies
+st.sidebar.header("Download Assistant Replies")
+if st.sidebar.button("Export All Assistant Replies"):
+    # Collect all assistant replies
+    assistant_replies = [
+        msg['content'] for msg in st.session_state.messages if msg['role'] == 'assistant'
+    ]
+    
+    # Format the replies into a single string
+    formatted_replies = "\n\n".join([f"Reply {i+1}:\n{reply}" for i, reply in enumerate(assistant_replies)])
+    
+    # Create a downloadable file
+    st.sidebar.download_button(
+        label="Download Replies",
+        data=formatted_replies,
+        file_name="all_assistant_replies.txt",
+        mime="text/plain"
+    )
