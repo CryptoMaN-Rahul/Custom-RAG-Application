@@ -19,9 +19,7 @@ load_dotenv()
 # For deployment on Streamlit Cloud
 groq_api_key = st.secrets["GROQ_API_KEY"]
 os.environ['HF_TOKEN'] = st.secrets["HF_TOKEN"]
-os.environ['LANGCHAIN_API_KEY'] = st.secrets["LANGCHAIN_API_KEY"]
 os.environ["LANGCHAIN_PROJECT"] = "CUSTOM RAG QNA"
-os.environ["LANGCHAIN_TRACKING_V2"] = 'false'
 
 # Creating the embeddings
 embeddings = HuggingFaceEmbeddings(model_name='all-MiniLM-L6-v2')
