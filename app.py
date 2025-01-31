@@ -12,14 +12,9 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.runnables.history import RunnableWithMessageHistory
 import os
 from dotenv import load_dotenv
-load_dotenv()
 
-# For local testing
-# groq_api_key = os.getenv("GROQ_API_KEY")
-# os.environ['HF_TOKEN'] = os.getenv("HF_TOKEN")
-# os.environ['LANGCHAIN_API_KEY'] = os.getenv("LANGCHAIN_API_KEY")
-# os.environ["LANGCHAIN_PROJECT"] = "CUSTOM RAG QNA"
-# os.environ["LANGCHAIN_TRACKING_V2"] = 'true'
+# Load environment variables
+load_dotenv()
 
 # For deployment on Streamlit Cloud
 groq_api_key = st.secrets["GROQ_API_KEY"]
@@ -28,14 +23,11 @@ os.environ['LANGCHAIN_API_KEY'] = st.secrets["LANGCHAIN_API_KEY"]
 os.environ["LANGCHAIN_PROJECT"] = "CUSTOM RAG QNA"
 os.environ["LANGCHAIN_TRACKING_V2"] = 'true'
 
-
 # Creating the embeddings
-embeddings = HuggingFaceEmbeddings(model_name = 'all-MiniLM-L6-v2')
-
+embeddings = HuggingFaceEmbeddings(model_name='all-MiniLM-L6-v2')
 
 # Creating the LLM
 llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=groq_api_key)
-
 
 # Streamlit UI Customization (Hogwarts theme)
 st.set_page_config(page_title="Magical NCERT RAG", page_icon="✨")
@@ -49,25 +41,19 @@ st.markdown(
     """
 )
 
-
 session_id = "Default Session"
 
-
 if 'messages' not in st.session_state:
-    st.session_state['messages'] = [{"role": "Assistant", "content":"Speak your query, and I shall assist you with precision and purpose... today"}]
-
+    st.session_state['messages'] = [{"role": "Assistant", "content": "Speak your query, and I shall assist you with precision and purpose... today"}]
 if 'store' not in st.session_state:
     st.session_state.store = {}
 
 uploaded_files = st.file_uploader(label='🔮 Upload your magical scrolls (PDF files)', type='pdf', accept_multiple_files=True)
 
-
 def get_session_history(session_id):
     if session_id not in st.session_state.store:
         st.session_state.store[session_id] = ChatMessageHistory()
-
     return st.session_state.store[session_id]
-
 
 # Whenever a document is uploaded it is split and embedded
 if uploaded_files:
@@ -81,16 +67,14 @@ if uploaded_files:
         documents.extend(docs)
     
     # Creating Splitter and Vectorstore
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size = 5000, chunk_overlap = 500)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=5000, chunk_overlap=500)
     splits = text_splitter.split_documents(documents)
     vectordb = FAISS.from_documents(splits, embedding=embeddings)
     retriever = vectordb.as_retriever()
 
-
     prompt_template = """
     Given a chat history and the latest user query, rewrite the query into a standalone question that is fully self-contained and does not rely on prior context. Do not answer the question—only rephrase or return it as is if no changes are needed.
     """
-
     prompt = ChatPromptTemplate(
         [
             ('system', prompt_template),
@@ -98,9 +82,7 @@ if uploaded_files:
             ('user', '{input}')
         ]
     )
-
     history_aware_retriever = create_history_aware_retriever(llm, retriever, prompt)
-
 
     sys_prompt = (
     "You are a powerful wizard from the magical world of Hogwarts."
@@ -113,7 +95,6 @@ if uploaded_files:
     "\n\n"
     "{context}"
     )
-
     q_a_prompt = ChatPromptTemplate(
         [
             ("system", sys_prompt),
@@ -122,10 +103,8 @@ if uploaded_files:
         ]
     )
 
-
     question_ans_chain = create_stuff_documents_chain(llm, q_a_prompt)
     rag_chain = create_retrieval_chain(history_aware_retriever, question_ans_chain)
-
 
     conversational_chain = RunnableWithMessageHistory(
         rag_chain, get_session_history,
@@ -135,15 +114,24 @@ if uploaded_files:
     )
 
     for message in st.session_state.messages:
-            st.chat_message(message['role']).write(message['content'])
+        st.chat_message(message['role']).write(message['content'])
 
-    if user_input:= st.chat_input(placeholder='What are diffusion Models?'):
+    if user_input := st.chat_input(placeholder='What are diffusion Models?'):
         st.chat_message('user').write(user_input)
-        st.session_state.messages.append({'role':'user', 'content':user_input})
+        st.session_state.messages.append({'role': 'user', 'content': user_input})
         response = conversational_chain.invoke(
             {'input': user_input},
             config={'configurable': {'session_id': session_id}}
         )
         with st.chat_message('assistant'):
-            st.session_state.messages.append({'role': 'assistant', 'content':response['answer']})
-            st.write(response['answer'])
+            assistant_reply = response['answer']
+            st.session_state.messages.append({'role': 'assistant', 'content': assistant_reply})
+            st.write(assistant_reply)
+
+            # Add a download button for the assistant's reply
+            st.download_button(
+                label="Download Assistant's Reply",
+                data=assistant_reply,
+                file_name="assistant_reply.txt",
+                mime="text/plain"
+            )
